@@ -1,8 +1,10 @@
 import { errorResponse, jsonResponse } from '../../../lib/api';
+import { requireUser } from '../../../lib/auth';
 import { deleteCategory, renameCategory } from '../../../lib/db';
 
 export async function PATCH({ params, request }: { params: { id: string }; request: Request }) {
   try {
+    await requireUser(request);
     const id = params.id;
     const body = await request.json();
     const name = String(body?.name || '').trim();
@@ -15,8 +17,9 @@ export async function PATCH({ params, request }: { params: { id: string }; reque
   }
 }
 
-export async function DELETE({ params }: { params: { id: string } }) {
+export async function DELETE({ params, request }: { params: { id: string }; request: Request }) {
   try {
+    await requireUser(request);
     const id = params.id;
     await deleteCategory(id);
     return jsonResponse({ ok: true });

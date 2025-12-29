@@ -44,6 +44,13 @@ import '../styles/global.css';
             />
           </svg>
         </button>
+        <button
+          id="logout-btn"
+          class="button-ghost bg-white/5 border border-white/10 rounded-full px-3 py-2 text-sm"
+          aria-label="Cerrar sesión"
+        >
+          Salir
+        </button>
       </header>
 
       <section class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-2xl px-4 sm:px-5 py-3">
@@ -182,6 +189,18 @@ import '../styles/global.css';
       </aside>
     </div>
 
+    <div
+      id="auth-overlay"
+      class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/85 backdrop-blur"
+    >
+      <div class="card p-6 max-w-md w-full text-center space-y-3">
+        <p class="text-xs uppercase text-slate-400 tracking-[0.2em]">Acceso privado</p>
+        <h2 class="text-2xl font-semibold text-white">Inicia sesión</h2>
+        <p class="text-sm text-slate-400">Solo está permitido el acceso con tu cuenta autorizada.</p>
+        <a id="login-link" href="/api/auth/google" class="button-primary justify-center">Entrar con Google</a>
+      </div>
+    </div>
+
     <script type="module">
       const currency = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
       const listEl = document.getElementById('concept-list');
@@ -202,6 +221,8 @@ import '../styles/global.css';
       const formModalClose = document.getElementById('form-modal-close');
       const openFormModal = document.getElementById('open-form-modal');
       const colorOptionsEl = document.getElementById('color-options');
+      const authOverlay = document.getElementById('auth-overlay');
+      const logoutBtn = document.getElementById('logout-btn');
 
       let filterCategory = 'all';
       const colorPalette = ['#22c55e', '#38bdf8', '#fbbf24', '#a855f7', '#f87171', '#f97316', '#6366f1', '#10b981'];
@@ -209,6 +230,8 @@ import '../styles/global.css';
       let isLoading = true;
       const state = { categories: [], concepts: [] };
       const todayISO = () => new Date().toISOString().slice(0, 10);
+      const defaultCategory = { id: 'general', name: 'General', color: '#22c55e' };
+      let isAuthenticated = false;
 
       const api = async (path, options = {}) => {
         const response = await fetch(path, {
@@ -222,6 +245,9 @@ import '../styles/global.css';
           payload = null;
         }
         if (!response.ok) {
+          if (response.status === 401) {
+            showAuthOverlay();
+          }
           console.error(payload?.error || response.statusText);
           throw new Error(payload?.error || 'Error en la petición');
         }
@@ -452,7 +478,7 @@ import '../styles/global.css';
       };
 
       const render = () => {
-        if (isLoading) {
+        if (isLoading || !isAuthenticated) {
           listEl.innerHTML = '<p class="text-sm text-slate-400">Cargando datos...</p>';
           stats();
           renderCategories();
@@ -576,6 +602,16 @@ import '../styles/global.css';
         if (e.key === 'Escape') toggleFormModal(false);
       });
 
+      const showAuthOverlay = () => {
+        authOverlay?.classList.remove('hidden');
+        isAuthenticated = false;
+      };
+
+      const hideAuthOverlay = () => {
+        authOverlay?.classList.add('hidden');
+        isAuthenticated = true;
+      };
+
       document.getElementById('concept-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
@@ -642,14 +678,23 @@ import '../styles/global.css';
       const init = async () => {
         try {
           renderColorOptions();
+          await api('/api/auth/me');
+          hideAuthOverlay();
           await refreshState();
         } catch (err) {
           console.error(err);
+          showAuthOverlay();
+          return;
         } finally {
           isLoading = false;
           render();
         }
       };
+
+      logoutBtn?.addEventListener('click', async () => {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        showAuthOverlay();
+      });
 
       init();
     </script>

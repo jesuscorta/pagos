@@ -1,8 +1,10 @@
 import { errorResponse, jsonResponse } from '../../lib/api';
+import { requireUser } from '../../lib/auth';
 import { createPayment } from '../../lib/db';
 
 export async function POST({ request }: { request: Request }) {
   try {
+    await requireUser(request);
     const body = await request.json();
     await createPayment({
       conceptId: body?.conceptId,
