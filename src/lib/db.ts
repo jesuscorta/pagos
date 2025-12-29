@@ -19,11 +19,11 @@ const defaultCategories: Category[] = [
   { id: 'mantenimiento', name: 'Mantenimiento', color: '#a855f7' },
 ];
 
-const shouldUseSSL = process.env.NODE_ENV === 'production';
+const shouldUseSSL = (process.env.DATABASE_SSL || '').toLowerCase() === 'true';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: shouldUseSSL ? { rejectUnauthorized: false } : undefined,
+  ssl: shouldUseSSL ? { rejectUnauthorized: false } : false,
 });
 
 const formatDate = (value: unknown) => {
