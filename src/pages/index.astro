@@ -1,44 +1,5 @@
 ---
 import '../styles/global.css';
-
-const initialCategories = [
-  { id: 'general', name: 'General', color: '#22c55e' },
-  { id: 'servicios', name: 'Servicios', color: '#38bdf8' },
-  { id: 'infra', name: 'Infraestructura', color: '#fbbf24' },
-  { id: 'mantenimiento', name: 'Mantenimiento', color: '#a855f7' },
-];
-
-const initialConcepts = [
-  {
-    id: 'concept-1',
-    title: 'Web de ejemplo',
-    amount: 200,
-    introducedAt: '2025-12-29',
-    categoryId: 'servicios',
-    payments: [
-      { id: 'p-1', amount: 50, date: '2025-10-01' },
-      { id: 'p-2', amount: 100, date: '2025-11-15' },
-    ],
-  },
-  {
-    id: 'concept-2',
-    title: 'Dominio y hosting',
-    amount: 120,
-    introducedAt: '2024-11-04',
-    categoryId: 'infra',
-    payments: [
-      { id: 'p-3', amount: 40, date: '2024-12-01' },
-    ],
-  },
-  {
-    id: 'concept-3',
-    title: 'Mantenimiento trimestral',
-    amount: 90,
-    introducedAt: '2025-01-15',
-    categoryId: 'mantenimiento',
-    payments: [],
-  },
-];
 ---
 <!doctype html>
 <html lang="es">
@@ -221,15 +182,7 @@ const initialConcepts = [
       </aside>
     </div>
 
-    <script
-      type="application/json"
-      id="initial-state"
-      set:html={JSON.stringify({ categories: initialCategories, concepts: initialConcepts })}
-    ></script>
     <script type="module">
-      const stateEl = document.getElementById('initial-state');
-      const state = JSON.parse(stateEl.textContent);
-
       const currency = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
       const listEl = document.getElementById('concept-list');
       const filterTagsEl = document.getElementById('category-filter-tags');
@@ -253,9 +206,40 @@ const initialConcepts = [
       let filterCategory = 'all';
       const colorPalette = ['#22c55e', '#38bdf8', '#fbbf24', '#a855f7', '#f87171', '#f97316', '#6366f1', '#10b981'];
       let selectedColor = colorPalette[0];
+      let isLoading = true;
+      const state = { categories: [], concepts: [] };
       const todayISO = () => new Date().toISOString().slice(0, 10);
 
-      const getCategory = (id) => state.categories.find((c) => c.id === id) || state.categories[0];
+      const api = async (path, options = {}) => {
+        const response = await fetch(path, {
+          headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+          ...options,
+        });
+        let payload = null;
+        try {
+          payload = await response.json();
+        } catch {
+          payload = null;
+        }
+        if (!response.ok) {
+          console.error(payload?.error || response.statusText);
+          throw new Error(payload?.error || 'Error en la petición');
+        }
+        return payload;
+      };
+
+      const syncState = (data) => {
+        state.categories = data?.categories || [];
+        state.concepts = data?.concepts || [];
+      };
+
+      const refreshState = async () => {
+        const data = await api('/api/state');
+        syncState(data);
+      };
+
+      const defaultCategory = { id: 'general', name: 'General', color: '#22c55e' };
+      const getCategory = (id) => state.categories.find((c) => c.id === id) || state.categories[0] || defaultCategory;
 
       const conceptTotals = (concept) => {
         const paid = (concept.payments || []).reduce((acc, p) => acc + Number(p.amount || 0), 0);
@@ -346,9 +330,7 @@ const initialConcepts = [
       };
 
       const stats = () => {
-        const concepts = state.concepts.filter(
-          (c) => filterCategory === 'all' || c.categoryId === filterCategory
-        );
+        const concepts = (state.concepts || []).filter((c) => filterCategory === 'all' || c.categoryId === filterCategory);
         const total = concepts.reduce((acc, c) => acc + Number(c.amount || 0), 0);
         const paid = concepts.reduce((acc, c) => acc + conceptTotals(c).paid, 0);
         const remaining = Math.max(total - paid, 0);
@@ -470,6 +452,13 @@ const initialConcepts = [
       };
 
       const render = () => {
+        if (isLoading) {
+          listEl.innerHTML = '<p class="text-sm text-slate-400">Cargando datos...</p>';
+          stats();
+          renderCategories();
+          return;
+        }
+
         const visibleConcepts = state.concepts
           .filter((c) => filterCategory === 'all' || c.categoryId === filterCategory)
           .sort((a, b) => {
@@ -483,27 +472,35 @@ const initialConcepts = [
         attachRowEvents();
         stats();
         renderCategories();
+
+        if (visibleConcepts.length === 0) {
+          listEl.innerHTML = '<p class="text-sm text-slate-400">No hay conceptos aún. Añade uno para empezar.</p>';
+        }
       };
 
       const attachRowEvents = () => {
         listEl.querySelectorAll('[data-action="mark-paid"]').forEach((btn) => {
-          btn.addEventListener('click', () => {
+          btn.addEventListener('click', async () => {
             const id = btn.dataset.id;
             const concept = state.concepts.find((c) => c.id === id);
             if (!concept) return;
             const { remaining, isPaid } = conceptTotals(concept);
             if (isPaid) return;
-            concept.payments.push({
-              id: crypto.randomUUID(),
-              amount: remaining,
-              date: todayISO(),
-            });
-            render();
+            try {
+              await api('/api/payments', {
+                method: 'POST',
+                body: JSON.stringify({ conceptId: id, amount: remaining, date: todayISO() }),
+              });
+              await refreshState();
+              render();
+            } catch (err) {
+              console.error(err);
+            }
           });
         });
 
         listEl.querySelectorAll('form[data-action="add-payment"]').forEach((form) => {
-          form.addEventListener('submit', (e) => {
+          form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = form.dataset.id;
             const concept = state.concepts.find((c) => c.id === id);
@@ -512,34 +509,51 @@ const initialConcepts = [
             const amount = Number(formData.get('amount'));
             if (!amount || Number.isNaN(amount)) return;
             const date = formData.get('date') || todayISO();
-            concept.payments.push({ id: crypto.randomUUID(), amount, date });
-            form.reset();
-            autoSetPaid(concept);
-            render();
+            try {
+              await api('/api/payments', {
+                method: 'POST',
+                body: JSON.stringify({ conceptId: id, amount, date }),
+              });
+              form.reset();
+              await refreshState();
+              render();
+            } catch (err) {
+              console.error(err);
+            }
           });
         });
 
         categoryList.querySelectorAll('[data-action="delete-category"]').forEach((btn) => {
-          btn.addEventListener('click', () => {
+          btn.addEventListener('click', async () => {
             const id = btn.dataset.id;
-            state.concepts = state.concepts.map((c) =>
-              c.categoryId === id ? { ...c, categoryId: 'general' } : c
-            );
-            state.categories = state.categories.filter((c) => c.id !== id);
-            if (filterCategory === id) filterCategory = 'all';
-            render();
+            try {
+              await api(`/api/categories/${id}`, { method: 'DELETE' });
+              if (filterCategory === id) filterCategory = 'all';
+              await refreshState();
+              render();
+            } catch (err) {
+              console.error(err);
+            }
           });
         });
 
         categoryList.querySelectorAll('[data-action="rename-category"]').forEach((btn) => {
-          btn.addEventListener('click', () => {
+          btn.addEventListener('click', async () => {
             const id = btn.dataset.id;
             const category = state.categories.find((c) => c.id === id);
             if (!category) return;
             const next = prompt('Nuevo nombre para la categoría', category.name);
             if (!next) return;
-            category.name = next.trim();
-            render();
+            try {
+              await api(`/api/categories/${id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ name: next.trim() }),
+              });
+              await refreshState();
+              render();
+            } catch (err) {
+              console.error(err);
+            }
           });
         });
       };
@@ -562,7 +576,7 @@ const initialConcepts = [
         if (e.key === 'Escape') toggleFormModal(false);
       });
 
-      document.getElementById('concept-form').addEventListener('submit', (e) => {
+      document.getElementById('concept-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
         const title = String(formData.get('title') || '').trim();
@@ -571,32 +585,39 @@ const initialConcepts = [
         const introducedAt = formData.get('introducedAt') || todayISO();
         const categoryId = formData.get('categoryId') || 'general';
 
-        state.concepts.unshift({
-          id: crypto.randomUUID(),
-          title,
-          amount,
-          introducedAt,
-          categoryId,
-          payments: [],
-        });
-
-        e.target.reset();
-        render();
-        toggleFormModal(false);
+        try {
+          await api('/api/concepts', {
+            method: 'POST',
+            body: JSON.stringify({ title, amount, introducedAt, categoryId }),
+          });
+          e.target.reset();
+          toggleFormModal(false);
+          await refreshState();
+          render();
+        } catch (err) {
+          console.error(err);
+        }
       });
 
-      document.getElementById('category-form').addEventListener('submit', (e) => {
+      document.getElementById('category-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const data = new FormData(e.target);
         const name = String(data.get('name') || '').trim();
         const color = selectedColor || colorPalette[0];
         if (!name) return;
-        const id = name.toLowerCase().replace(/\s+/g, '-');
-        state.categories.push({ id, name, color });
-        e.target.reset();
-        selectedColor = colorPalette[0];
-        renderColorOptions();
-        render();
+        try {
+          await api('/api/categories', {
+            method: 'POST',
+            body: JSON.stringify({ name, color }),
+          });
+          e.target.reset();
+          selectedColor = colorPalette[0];
+          renderColorOptions();
+          await refreshState();
+          render();
+        } catch (err) {
+          console.error(err);
+        }
       });
 
       const toggleConfigModal = (open) => {
@@ -618,8 +639,19 @@ const initialConcepts = [
       configClose.addEventListener('click', () => toggleConfigModal(false));
       configOverlay?.addEventListener('click', () => toggleConfigModal(false));
 
-      renderColorOptions();
-      render();
+      const init = async () => {
+        try {
+          renderColorOptions();
+          await refreshState();
+        } catch (err) {
+          console.error(err);
+        } finally {
+          isLoading = false;
+          render();
+        }
+      };
+
+      init();
     </script>
   </body>
 </html>
