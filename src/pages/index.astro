@@ -121,10 +121,10 @@ const initialConcepts = [
       <section class="space-y-3" id="concept-list"></section>
     </main>
 
-    <button
-      id="open-form-modal"
-      class="fixed bottom-6 right-6 z-30 button-primary rounded-full px-5 py-3 shadow-lg shadow-emerald-500/30"
-    >
+        <button
+          id="open-form-modal"
+          class="fixed bottom-6 right-6 z-30 button-primary rounded-full px-5 py-3 shadow-lg shadow-emerald-500/30"
+        >
       <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4.5v15m7.5-7.5h-15" />
       </svg>
@@ -184,16 +184,6 @@ const initialConcepts = [
         </div>
       </div>
     </div>
-
-    <section class="max-w-6xl mx-auto px-6 pb-4 flex flex-wrap items-center justify-between gap-3">
-      <div class="space-y-2">
-        <p class="text-sm text-slate-300">Filtrar por categoría</p>
-        <div id="category-filter-tags" class="flex flex-wrap gap-2"></div>
-      </div>
-      <div class="text-xs text-slate-400">El resumen usa el filtro activo.</div>
-    </section>
-
-    <section class="space-y-3" id="concept-list"></section>
 
     <div
       id="config-modal"
@@ -263,6 +253,7 @@ const initialConcepts = [
       let filterCategory = 'all';
       const colorPalette = ['#22c55e', '#38bdf8', '#fbbf24', '#a855f7', '#f87171', '#f97316', '#6366f1', '#10b981'];
       let selectedColor = colorPalette[0];
+      const todayISO = () => new Date().toISOString().slice(0, 10);
 
       const getCategory = (id) => state.categories.find((c) => c.id === id) || state.categories[0];
 
@@ -502,11 +493,10 @@ const initialConcepts = [
             if (!concept) return;
             const { remaining, isPaid } = conceptTotals(concept);
             if (isPaid) return;
-            const today = new Date().toISOString().slice(0, 10);
             concept.payments.push({
               id: crypto.randomUUID(),
               amount: remaining,
-              date: today,
+              date: todayISO(),
             });
             render();
           });
@@ -521,7 +511,7 @@ const initialConcepts = [
             const formData = new FormData(form);
             const amount = Number(formData.get('amount'));
             if (!amount || Number.isNaN(amount)) return;
-            const date = formData.get('date') || new Date().toISOString().slice(0, 10);
+            const date = formData.get('date') || todayISO();
             concept.payments.push({ id: crypto.randomUUID(), amount, date });
             form.reset();
             autoSetPaid(concept);
@@ -578,7 +568,7 @@ const initialConcepts = [
         const title = String(formData.get('title') || '').trim();
         const amount = Number(formData.get('amount'));
         if (!title || !amount || Number.isNaN(amount)) return;
-        const introducedAt = formData.get('introducedAt') || new Date().toISOString().slice(0, 10);
+        const introducedAt = formData.get('introducedAt') || todayISO();
         const categoryId = formData.get('categoryId') || 'general';
 
         state.concepts.unshift({
