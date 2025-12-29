@@ -20,8 +20,10 @@ export async function GET({ request }: { request: Request }) {
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = `${process.env.PUBLIC_URL || ''}/api/auth/google/callback` || '';
-    if (!clientId || !clientSecret || !redirectUri) throw new Error('Configura GOOGLE_* y PUBLIC_URL');
+    const publicUrl = process.env.PUBLIC_URL;
+    if (!publicUrl) throw new Error('Configura PUBLIC_URL');
+    const redirectUri = new URL('/api/auth/google/callback', publicUrl).toString();
+    if (!clientId || !clientSecret) throw new Error('Configura GOOGLE_* y PUBLIC_URL');
 
     const body = new URLSearchParams({
       code,
@@ -59,13 +61,9 @@ export async function GET({ request }: { request: Request }) {
         (process.env.NODE_ENV === 'production' ? 'Secure' : ''),
     ];
 
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: '/',
-        'Set-Cookie': cookies,
-      },
-    });
+    const headers = new Headers({ Location: '/' });
+    cookies.forEach((cookie) => headers.append('Set-Cookie', cookie));
+    return new Response(null, { status: 302, headers });
   } catch (err) {
     return new Response('Auth error', {
       status: 302,

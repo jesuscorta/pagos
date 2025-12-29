@@ -5,9 +5,10 @@ const googleAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
 export async function GET() {
   try {
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = `${process.env.PUBLIC_URL || ''}/api/auth/google/callback` || '';
+    const publicUrl = process.env.PUBLIC_URL;
+    if (!publicUrl) throw new Error('Configura PUBLIC_URL');
+    const redirectUri = new URL('/api/auth/google/callback', publicUrl).toString();
     if (!clientId) throw new Error('Configura GOOGLE_CLIENT_ID');
-    if (!redirectUri) throw new Error('Configura PUBLIC_URL');
     const state = crypto.randomUUID();
     const params = new URLSearchParams({
       client_id: clientId,

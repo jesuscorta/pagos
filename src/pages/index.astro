@@ -264,7 +264,6 @@ import '../styles/global.css';
         syncState(data);
       };
 
-      const defaultCategory = { id: 'general', name: 'General', color: '#22c55e' };
       const getCategory = (id) => state.categories.find((c) => c.id === id) || state.categories[0] || defaultCategory;
 
       const conceptTotals = (concept) => {
