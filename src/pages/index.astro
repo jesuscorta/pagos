@@ -1,0 +1,635 @@
+---
+import '../styles/global.css';
+
+const initialCategories = [
+  { id: 'general', name: 'General', color: '#22c55e' },
+  { id: 'servicios', name: 'Servicios', color: '#38bdf8' },
+  { id: 'infra', name: 'Infraestructura', color: '#fbbf24' },
+  { id: 'mantenimiento', name: 'Mantenimiento', color: '#a855f7' },
+];
+
+const initialConcepts = [
+  {
+    id: 'concept-1',
+    title: 'Web de ejemplo',
+    amount: 200,
+    introducedAt: '2025-12-29',
+    categoryId: 'servicios',
+    payments: [
+      { id: 'p-1', amount: 50, date: '2025-10-01' },
+      { id: 'p-2', amount: 100, date: '2025-11-15' },
+    ],
+  },
+  {
+    id: 'concept-2',
+    title: 'Dominio y hosting',
+    amount: 120,
+    introducedAt: '2024-11-04',
+    categoryId: 'infra',
+    payments: [
+      { id: 'p-3', amount: 40, date: '2024-12-01' },
+    ],
+  },
+  {
+    id: 'concept-3',
+    title: 'Mantenimiento trimestral',
+    amount: 90,
+    introducedAt: '2025-01-15',
+    categoryId: 'mantenimiento',
+    payments: [],
+  },
+];
+---
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pagos y cobros</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="min-h-screen relative overflow-x-hidden">
+    <div class="pointer-events-none absolute inset-0">
+      <div class="absolute -top-24 -left-32 h-80 w-80 rounded-full bg-emerald-500/10 blur-3xl"></div>
+      <div class="absolute top-10 right-0 h-72 w-72 rounded-full bg-sky-500/10 blur-3xl"></div>
+      <div class="absolute bottom-0 left-20 h-72 w-72 rounded-full bg-purple-500/10 blur-3xl"></div>
+    </div>
+
+    <main class="relative mx-auto max-w-6xl px-6 py-10 space-y-8">
+      <header class="flex items-start justify-between gap-6">
+        <div class="space-y-2">
+          <p class="text-slate-400 text-sm uppercase tracking-[0.2em]">Pagos y cobros</p>
+          <h1 class="text-4xl sm:text-5xl font-display font-bold text-white">Panel de recibos</h1>
+          <p class="text-slate-400 max-w-2xl">
+            Añade conceptos, registra cobros parciales y controla al instante cuánto has cobrado y cuánto sigue pendiente.
+          </p>
+        </div>
+        <button
+          id="config-trigger"
+          class="button-ghost bg-white/5 border border-white/10 rounded-full w-11 h-11 flex items-center justify-center"
+          aria-label="Abrir configuración"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-5 h-5">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.6"
+              d="m11.25 4.5-.634-1.26a.75.75 0 0 0-1.342 0L7.5 7.5H5.25a.75.75 0 0 0-.75.75V9.5h15V8.25a.75.75 0 0 0-.75-.75H16.5l-1.774-3.54a.75.75 0 0 0-1.342 0L12.75 4.5m-1.5 0h1.5m-1.5 0H9m-3 5V19.5m0 0c0 .621.504 1.125 1.125 1.125h11.25c.621 0 1.125-.504 1.125-1.125V9.5m-13.5 10V12.75c0-.621.504-1.125 1.125-1.125h9.75c.621 0 1.125.504 1.125 1.125V19.5m0-10h-12"
+            />
+          </svg>
+        </button>
+      </header>
+
+      <section class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-2xl px-4 sm:px-5 py-3">
+        <div class="space-y-1">
+          <p class="text-sm text-slate-300">Filtrar por categoría</p>
+          <div id="category-filter-tags" class="flex flex-wrap gap-2"></div>
+        </div>
+        <div class="text-xs text-slate-400">El resumen usa el filtro activo.</div>
+      </section>
+
+      <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <article class="card p-5">
+          <p class="text-sm text-slate-400">Total comprometido</p>
+          <p id="stat-total" class="text-3xl font-semibold text-white mt-2">€0</p>
+          <p class="text-xs text-slate-400 mt-1">Importe de todos los conceptos</p>
+        </article>
+        <article class="card p-5">
+          <p class="text-sm text-slate-400">Cobrado</p>
+          <p id="stat-paid" class="text-3xl font-semibold text-emerald-400 mt-2">€0</p>
+          <p class="text-xs text-slate-400 mt-1">Suma de pagos registrados</p>
+        </article>
+        <article class="card p-5">
+          <p class="text-sm text-slate-400">Pendiente</p>
+          <p id="stat-remaining" class="text-3xl font-semibold text-amber-300 mt-2">€0</p>
+          <p class="text-xs text-slate-400 mt-1">Lo que falta por cobrar</p>
+        </article>
+        <article class="card p-5 flex flex-col justify-between">
+          <div>
+            <p class="text-sm text-slate-400">Conceptos pendientes</p>
+            <p id="stat-open" class="text-3xl font-semibold text-white mt-2">0</p>
+          </div>
+          <p class="text-xs text-slate-400 mt-3">Se agrupan arriba; los completados se mandan al final.</p>
+        </article>
+      </section>
+
+      <section class="space-y-3" id="concept-list"></section>
+    </main>
+
+    <button
+      id="open-form-modal"
+      class="fixed bottom-6 right-6 z-30 button-primary rounded-full px-5 py-3 shadow-lg shadow-emerald-500/30"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+      Nuevo concepto
+    </button>
+
+    <div
+      id="form-modal"
+      class="fixed inset-0 z-40 hidden flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="form-modal-title"
+    >
+      <div id="form-modal-overlay" class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"></div>
+      <div class="relative z-10 max-w-5xl w-full px-4 sm:px-6">
+        <div class="card p-6 sm:p-7">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="text-xs uppercase text-slate-400 tracking-[0.2em]">Nuevo concepto</p>
+              <h2 id="form-modal-title" class="text-2xl font-semibold text-white">Añadir y filtrar</h2>
+              <p class="text-sm text-slate-400 mt-1">El resumen y la lista respetan el filtro seleccionado.</p>
+            </div>
+            <button id="form-modal-close" class="button-ghost px-3" aria-label="Cerrar panel">✕</button>
+          </div>
+
+          <div class="mt-6 space-y-4">
+            <form id="concept-form" class="grid gap-3 sm:grid-cols-5">
+              <div class="sm:col-span-2">
+                <label class="text-sm text-slate-300">Concepto</label>
+                <input required name="title" placeholder="Ej. Web de ejemplo" class="input mt-1" />
+              </div>
+              <div>
+                <label class="text-sm text-slate-300">Importe total (€)</label>
+                <input
+                  required
+                  name="amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="200"
+                  class="input mt-1"
+                />
+              </div>
+              <div>
+                <label class="text-sm text-slate-300">Fecha de alta</label>
+                <input name="introducedAt" type="date" class="input mt-1" />
+              </div>
+              <div>
+                <label class="text-sm text-slate-300">Categoría</label>
+                <select name="categoryId" class="input mt-1" id="category-selector"></select>
+              </div>
+              <div class="sm:col-span-5 flex justify-end">
+                <button type="submit" class="button-primary">Añadir concepto</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="max-w-6xl mx-auto px-6 pb-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="space-y-2">
+        <p class="text-sm text-slate-300">Filtrar por categoría</p>
+        <div id="category-filter-tags" class="flex flex-wrap gap-2"></div>
+      </div>
+      <div class="text-xs text-slate-400">El resumen usa el filtro activo.</div>
+    </section>
+
+    <section class="space-y-3" id="concept-list"></section>
+
+    <div
+      id="config-modal"
+      class="hidden fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="config-panel-title"
+    >
+      <div id="config-overlay" class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"></div>
+      <aside
+        id="config-panel"
+        class="relative z-10 w-96 max-w-[95vw] bg-slate-900/90 border border-white/10 rounded-2xl shadow-2xl p-6 backdrop-blur"
+      >
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="text-xs uppercase text-slate-400 tracking-[0.2em]">Configuración</p>
+            <h3 id="config-panel-title" class="text-lg font-semibold text-white">Categorías</h3>
+          </div>
+          <button id="config-close" class="button-ghost px-2" aria-label="Cerrar configuración">✕</button>
+        </div>
+        <form id="category-form" class="mt-4 space-y-2">
+          <div>
+            <label class="text-sm text-slate-300">Nombre</label>
+            <input required name="name" placeholder="Nueva categoría" class="input mt-1" />
+          </div>
+          <div>
+            <label class="text-sm text-slate-300">Color</label>
+            <div id="color-options" class="mt-2 flex flex-wrap gap-2"></div>
+          </div>
+          <div class="flex justify-end pt-2">
+            <button type="submit" class="button-primary">Añadir categoría</button>
+          </div>
+        </form>
+        <div class="mt-4 space-y-2" id="category-list"></div>
+      </aside>
+    </div>
+
+    <script
+      type="application/json"
+      id="initial-state"
+      set:html={JSON.stringify({ categories: initialCategories, concepts: initialConcepts })}
+    ></script>
+    <script type="module">
+      const stateEl = document.getElementById('initial-state');
+      const state = JSON.parse(stateEl.textContent);
+
+      const currency = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
+      const listEl = document.getElementById('concept-list');
+      const filterTagsEl = document.getElementById('category-filter-tags');
+      const selectorEl = document.getElementById('category-selector');
+      const statTotalEl = document.getElementById('stat-total');
+      const statPaidEl = document.getElementById('stat-paid');
+      const statRemainingEl = document.getElementById('stat-remaining');
+      const statOpenEl = document.getElementById('stat-open');
+      const configModal = document.getElementById('config-modal');
+      const configOverlay = document.getElementById('config-overlay');
+      const configPanel = document.getElementById('config-panel');
+      const configTrigger = document.getElementById('config-trigger');
+      const configClose = document.getElementById('config-close');
+      const categoryList = document.getElementById('category-list');
+      const formModal = document.getElementById('form-modal');
+      const formModalOverlay = document.getElementById('form-modal-overlay');
+      const formModalClose = document.getElementById('form-modal-close');
+      const openFormModal = document.getElementById('open-form-modal');
+      const colorOptionsEl = document.getElementById('color-options');
+
+      let filterCategory = 'all';
+      const colorPalette = ['#22c55e', '#38bdf8', '#fbbf24', '#a855f7', '#f87171', '#f97316', '#6366f1', '#10b981'];
+      let selectedColor = colorPalette[0];
+
+      const getCategory = (id) => state.categories.find((c) => c.id === id) || state.categories[0];
+
+      const conceptTotals = (concept) => {
+        const paid = (concept.payments || []).reduce((acc, p) => acc + Number(p.amount || 0), 0);
+        const remaining = Math.max(concept.amount - paid, 0);
+        return { paid, remaining, isPaid: remaining === 0 };
+      };
+
+      const renderColorOptions = () => {
+        if (!colorOptionsEl) return;
+        colorOptionsEl.innerHTML = colorPalette
+          .map(
+            (color) => `
+              <button
+                type="button"
+                data-color="${color}"
+                class="w-7 h-7 rounded-full border transition ${selectedColor === color ? 'ring-2 ring-white/70 scale-105' : 'ring-0'}"
+                style="background:${color};border-color:${color}80"
+                aria-label="Elegir color ${color}"
+              ></button>
+            `
+          )
+          .join('');
+
+        colorOptionsEl.querySelectorAll('[data-color]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            selectedColor = btn.dataset.color;
+            renderColorOptions();
+          });
+        });
+      };
+
+      const renderCategories = () => {
+        const options = state.categories.map((cat) => `<option value="${cat.id}">${cat.name}</option>`).join('');
+        selectorEl.innerHTML = options;
+
+        categoryList.innerHTML = state.categories
+          .map(
+            (cat) => `
+              <div class="flex items-center justify-between bg-white/5 border border-white/5 rounded-xl px-3 py-2">
+                <div class="flex items-center gap-2">
+                  <span class="w-3 h-3 rounded-full" style="background:${cat.color}"></span>
+                  <span class="text-sm text-slate-200">${cat.name}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button class="text-xs text-slate-300 underline" data-action="rename-category" data-id="${cat.id}">Renombrar</button>
+                  ${cat.id === 'general' ? '' : `<button class="text-xs text-red-300 underline" data-action="delete-category" data-id="${cat.id}">Eliminar</button>`}
+                </div>
+              </div>
+            `
+          )
+          .join('');
+
+        renderFilterTags();
+      };
+
+      const renderFilterTags = () => {
+        if (!filterTagsEl) return;
+        const tags = [{ id: 'all', name: 'Todas', color: '#cbd5e1' }, ...state.categories];
+        filterTagsEl.innerHTML = tags
+          .map((tag) => {
+            const active = filterCategory === tag.id;
+            const style =
+              tag.id === 'all'
+                ? ''
+                : `color:${tag.color};border-color:${tag.color}30;background:${tag.color}15`;
+            return `
+              <button
+                data-filter="${tag.id}"
+                class="px-3 py-1 rounded-full text-sm font-medium border transition ${
+                  active
+                    ? 'bg-white/15 border-white/50 text-white shadow-inner'
+                    : 'bg-white/5 border-white/10 text-slate-300 hover:border-white/30'
+                }"
+                style="${style}"
+              >
+                ${tag.name}
+              </button>
+            `;
+          })
+          .join('');
+
+        filterTagsEl.querySelectorAll('[data-filter]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            filterCategory = btn.dataset.filter;
+            render();
+          });
+        });
+      };
+
+      const stats = () => {
+        const concepts = state.concepts.filter(
+          (c) => filterCategory === 'all' || c.categoryId === filterCategory
+        );
+        const total = concepts.reduce((acc, c) => acc + Number(c.amount || 0), 0);
+        const paid = concepts.reduce((acc, c) => acc + conceptTotals(c).paid, 0);
+        const remaining = Math.max(total - paid, 0);
+        const open = concepts.filter((c) => !conceptTotals(c).isPaid).length;
+
+        statTotalEl.textContent = currency.format(total);
+        statPaidEl.textContent = currency.format(paid);
+        statRemainingEl.textContent = currency.format(remaining);
+        statOpenEl.textContent = open;
+      };
+
+      const autoSetPaid = (concept) => {
+        if (!concept) return;
+        const { remaining } = conceptTotals(concept);
+        if (remaining === 0) return;
+        const paidSum = (concept.payments || []).reduce((acc, p) => acc + Number(p.amount || 0), 0);
+        if (paidSum >= concept.amount) {
+          const today = new Date().toISOString().slice(0, 10);
+          concept.payments.push({
+            id: crypto.randomUUID(),
+            amount: Math.max(concept.amount - paidSum, 0),
+            date: today,
+          });
+        }
+      };
+
+      const renderConcept = (concept) => {
+        const { paid, remaining, isPaid } = conceptTotals(concept);
+        const category = getCategory(concept.categoryId);
+        const paymentsList = (concept.payments || [])
+          .map(
+            (p) => `
+              <div class="grid grid-cols-2 gap-3 items-center py-2 text-sm text-slate-200">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400/80"></span>
+                  <span class="font-medium">${currency.format(p.amount)}</span>
+                </div>
+                <span class="text-right text-slate-400">${p.date}</span>
+              </div>
+            `
+          )
+          .join('');
+
+        return `
+          <article class="card p-5 ${isPaid ? 'opacity-60' : ''}" data-concept-id="${concept.id}">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <h3 class="text-xl font-semibold text-white">${concept.title}</h3>
+                  <span class="badge" style="background:${category.color}20;color:${category.color}">${
+                    category.name
+                  }</span>
+                </div>
+                <p class="text-xs text-slate-400">Alta: ${concept.introducedAt || '—'}</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-4 text-right">
+                <div>
+                  <p class="text-slate-400 text-sm">Total</p>
+                  <p class="text-lg font-semibold text-white">${currency.format(concept.amount)}</p>
+                </div>
+                <div>
+                  <p class="text-slate-400 text-sm">Cobrado</p>
+                  <p class="text-lg font-semibold text-emerald-400">${currency.format(paid)}</p>
+                </div>
+                <div>
+                  <p class="text-slate-400 text-sm">Pendiente</p>
+                  <p class="text-lg font-semibold text-rose-300">${currency.format(remaining)}</p>
+                </div>
+                <button
+                  data-action="mark-paid"
+                  data-id="${concept.id}"
+                  class="inline-flex items-center justify-center rounded-full w-10 h-10 border border-emerald-400/50 text-emerald-200 hover:text-emerald-50 hover:border-emerald-300 hover:bg-emerald-500/10 transition ${isPaid ? 'opacity-50 cursor-not-allowed' : ''}"
+                  ${isPaid ? 'disabled' : ''}
+                  aria-label="Marcar pagado"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <details class="mt-4 bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+              <summary class="px-6 md:px-8 py-3 flex items-center justify-between cursor-pointer hover:bg-white/5 transition">
+                <div class="flex items-center gap-2 text-slate-200 font-medium">
+                  <span>Pagos (${concept.payments?.length || 0})</span>
+                  <span class="text-xs text-slate-400">Cobrado ${currency.format(paid)}</span>
+                </div>
+                <span class="text-sm text-slate-400">${paymentsList ? 'Ver detalle' : 'Sin pagos todavía'}</span>
+              </summary>
+              <div class="divide-y divide-white/5 bg-slate-900/30">
+                <div class="px-6 md:px-8 py-2 max-w-3xl mx-auto w-full">
+                  ${
+                    paymentsList ||
+                    '<p class="py-2 text-sm text-slate-400">Añade pagos parciales para verlos aquí.</p>'
+                  }
+                </div>
+                <form
+                  class="px-6 md:px-8 py-3 max-w-3xl mx-auto w-full flex flex-wrap md:flex-nowrap items-center gap-3 bg-slate-900/40"
+                  data-action="add-payment"
+                  data-id="${concept.id}"
+                >
+                  <input
+                    required
+                    name="amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Importe"
+                    class="input w-36 sm:w-32 md:w-28"
+                  />
+                  <input name="date" type="date" class="input w-44 sm:w-40 md:w-44" placeholder="dd/mm/aaaa" />
+                  <button type="submit" class="button-primary h-11">Añadir pago</button>
+                  <span class="text-xs text-slate-400 md:ml-auto">Se suman automáticamente.</span>
+                </form>
+              </div>
+            </details>
+          </article>
+        `;
+      };
+
+      const render = () => {
+        const visibleConcepts = state.concepts
+          .filter((c) => filterCategory === 'all' || c.categoryId === filterCategory)
+          .sort((a, b) => {
+            const aPaid = conceptTotals(a).isPaid;
+            const bPaid = conceptTotals(b).isPaid;
+            if (aPaid === bPaid) return 0;
+            return aPaid ? 1 : -1;
+          });
+
+        listEl.innerHTML = visibleConcepts.map(renderConcept).join('');
+        attachRowEvents();
+        stats();
+        renderCategories();
+      };
+
+      const attachRowEvents = () => {
+        listEl.querySelectorAll('[data-action="mark-paid"]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            const concept = state.concepts.find((c) => c.id === id);
+            if (!concept) return;
+            const { remaining, isPaid } = conceptTotals(concept);
+            if (isPaid) return;
+            const today = new Date().toISOString().slice(0, 10);
+            concept.payments.push({
+              id: crypto.randomUUID(),
+              amount: remaining,
+              date: today,
+            });
+            render();
+          });
+        });
+
+        listEl.querySelectorAll('form[data-action="add-payment"]').forEach((form) => {
+          form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = form.dataset.id;
+            const concept = state.concepts.find((c) => c.id === id);
+            if (!concept) return;
+            const formData = new FormData(form);
+            const amount = Number(formData.get('amount'));
+            if (!amount || Number.isNaN(amount)) return;
+            const date = formData.get('date') || new Date().toISOString().slice(0, 10);
+            concept.payments.push({ id: crypto.randomUUID(), amount, date });
+            form.reset();
+            autoSetPaid(concept);
+            render();
+          });
+        });
+
+        categoryList.querySelectorAll('[data-action="delete-category"]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            state.concepts = state.concepts.map((c) =>
+              c.categoryId === id ? { ...c, categoryId: 'general' } : c
+            );
+            state.categories = state.categories.filter((c) => c.id !== id);
+            if (filterCategory === id) filterCategory = 'all';
+            render();
+          });
+        });
+
+        categoryList.querySelectorAll('[data-action="rename-category"]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            const category = state.categories.find((c) => c.id === id);
+            if (!category) return;
+            const next = prompt('Nuevo nombre para la categoría', category.name);
+            if (!next) return;
+            category.name = next.trim();
+            render();
+          });
+        });
+      };
+
+      const toggleFormModal = (open) => {
+        if (!formModal) return;
+        if (open) {
+          formModal.classList.remove('hidden');
+          document.body.classList.add('overflow-hidden');
+        } else {
+          formModal.classList.add('hidden');
+          document.body.classList.remove('overflow-hidden');
+        }
+      };
+
+      openFormModal?.addEventListener('click', () => toggleFormModal(true));
+      formModalClose?.addEventListener('click', () => toggleFormModal(false));
+      formModalOverlay?.addEventListener('click', () => toggleFormModal(false));
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') toggleFormModal(false);
+      });
+
+      document.getElementById('concept-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const title = String(formData.get('title') || '').trim();
+        const amount = Number(formData.get('amount'));
+        if (!title || !amount || Number.isNaN(amount)) return;
+        const introducedAt = formData.get('introducedAt') || new Date().toISOString().slice(0, 10);
+        const categoryId = formData.get('categoryId') || 'general';
+
+        state.concepts.unshift({
+          id: crypto.randomUUID(),
+          title,
+          amount,
+          introducedAt,
+          categoryId,
+          payments: [],
+        });
+
+        e.target.reset();
+        render();
+        toggleFormModal(false);
+      });
+
+      document.getElementById('category-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const data = new FormData(e.target);
+        const name = String(data.get('name') || '').trim();
+        const color = selectedColor || colorPalette[0];
+        if (!name) return;
+        const id = name.toLowerCase().replace(/\s+/g, '-');
+        state.categories.push({ id, name, color });
+        e.target.reset();
+        selectedColor = colorPalette[0];
+        renderColorOptions();
+        render();
+      });
+
+      const toggleConfigModal = (open) => {
+        if (!configModal) return;
+        if (open) {
+          configModal.classList.remove('hidden');
+          document.body.classList.add('overflow-hidden');
+        } else {
+          configModal.classList.add('hidden');
+          document.body.classList.remove('overflow-hidden');
+        }
+      };
+
+      configTrigger.addEventListener('click', () => {
+        const isHidden = configModal.classList.contains('hidden');
+        toggleConfigModal(isHidden);
+      });
+
+      configClose.addEventListener('click', () => toggleConfigModal(false));
+      configOverlay?.addEventListener('click', () => toggleConfigModal(false));
+
+      renderColorOptions();
+      render();
+    </script>
+  </body>
+</html>

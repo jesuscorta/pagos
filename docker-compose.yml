@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    container_name: pagos_app
+    ports:
+      - "4321:4321"
+    env_file:
+      - .env
+    depends_on:
+      - db
+    # Uncomment to mount source during dev (uses host node_modules)
+    # volumes:
+    #   - .:/app
+    #   - /app/node_modules
+
+  db:
+    image: postgres:16-alpine
+    container_name: pagos_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pagos}
+      POSTGRES_USER: ${POSTGRES_USER:-pagos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pagos}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pagos_db_data:/var/lib/postgresql/data
+
+volumes:
+  pagos_db_data:
