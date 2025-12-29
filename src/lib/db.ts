@@ -26,11 +26,6 @@ const pool = new Pool({
   ssl: shouldUseSSL ? { rejectUnauthorized: false } : undefined,
 });
 
-const initPromise = (async () => {
-  await ensureSchema();
-  await seedDefaultCategories();
-})();
-
 const formatDate = (value: unknown) => {
   if (!value) return null;
   if (typeof value === 'string') return value.slice(0, 10);
@@ -79,6 +74,11 @@ const seedDefaultCategories = async () => {
   );
   await Promise.all(insertPromises);
 };
+
+const initPromise = (async () => {
+  await ensureSchema();
+  await seedDefaultCategories();
+})();
 
 const ensureCategory = async (categoryId: string) => {
   const { rows } = await pool.query(`SELECT id FROM categories WHERE id = $1`, [categoryId]);
