@@ -1,4 +1,4 @@
-import { errorResponse } from '../../../../lib/api';
+import { errorResponse, resolvePublicUrl } from '../../../../lib/api';
 import { allowedEmails, clearSessionCookie, createSessionToken, sessionCookie } from '../../../../lib/auth';
 
 const tokenEndpoint = 'https://oauth2.googleapis.com/token';
@@ -20,7 +20,7 @@ export async function GET({ request }: { request: Request }) {
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const publicUrl = process.env.PUBLIC_URL;
+    const publicUrl = resolvePublicUrl(request);
     if (!publicUrl) throw new Error('Configura PUBLIC_URL');
     const redirectUri = new URL('/api/auth/google/callback', publicUrl).toString();
     if (!clientId || !clientSecret) throw new Error('Configura GOOGLE_* y PUBLIC_URL');

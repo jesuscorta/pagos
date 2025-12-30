@@ -1,11 +1,11 @@
-import { errorResponse } from '../../../lib/api';
+import { errorResponse, resolvePublicUrl } from '../../../lib/api';
 
 const googleAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
 
-export async function GET() {
+export async function GET({ request }: { request: Request }) {
   try {
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const publicUrl = process.env.PUBLIC_URL;
+    const publicUrl = resolvePublicUrl(request);
     if (!publicUrl) throw new Error('Configura PUBLIC_URL');
     const redirectUri = new URL('/api/auth/google/callback', publicUrl).toString();
     if (!clientId) throw new Error('Configura GOOGLE_CLIENT_ID');
