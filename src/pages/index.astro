@@ -154,6 +154,60 @@ import '../styles/global.css';
     </div>
 
     <div
+      id="edit-concept-modal"
+      class="fixed inset-0 z-40 hidden flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-concept-title"
+    >
+      <div id="edit-modal-overlay" class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"></div>
+      <div class="relative z-10 max-w-5xl w-full px-4 sm:px-6">
+        <div class="card p-6 sm:p-7">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="text-xs uppercase text-slate-400 tracking-[0.2em]">Editar concepto</p>
+              <h2 id="edit-concept-title" class="text-2xl font-semibold text-white">Actualizar datos</h2>
+            </div>
+            <button id="edit-modal-close" class="button-ghost px-3" aria-label="Cerrar panel">✕</button>
+          </div>
+
+          <div class="mt-6 space-y-4">
+            <form id="edit-concept-form" class="grid gap-3 sm:grid-cols-5">
+              <div class="sm:col-span-2">
+                <label class="text-sm text-slate-300" for="edit-title">Concepto</label>
+                <input required name="title" id="edit-title" placeholder="Ej. Web de ejemplo" class="input mt-1" />
+              </div>
+              <div>
+                <label class="text-sm text-slate-300" for="edit-amount">Importe total (€)</label>
+                <input
+                  required
+                  name="amount"
+                  id="edit-amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="200"
+                  class="input mt-1"
+                />
+              </div>
+              <div>
+                <label class="text-sm text-slate-300" for="edit-introduced">Fecha de alta</label>
+                <input name="introducedAt" id="edit-introduced" type="date" class="input mt-1" />
+              </div>
+              <div>
+                <label class="text-sm text-slate-300" for="edit-category-selector">Categoría</label>
+                <select name="categoryId" class="input mt-1" id="edit-category-selector"></select>
+              </div>
+              <div class="sm:col-span-5 flex justify-end">
+                <button type="submit" class="button-primary">Guardar cambios</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
       id="config-modal"
       class="hidden fixed inset-0 z-50 flex items-center justify-center"
       role="dialog"
@@ -253,6 +307,14 @@ import '../styles/global.css';
       const colorOptionsEl = document.getElementById('color-options');
       const authOverlay = document.getElementById('auth-overlay');
       const authErrorMsg = document.getElementById('auth-error');
+      const editModal = document.getElementById('edit-concept-modal');
+      const editModalOverlay = document.getElementById('edit-modal-overlay');
+      const editModalClose = document.getElementById('edit-modal-close');
+      const editForm = document.getElementById('edit-concept-form');
+      const editTitle = document.getElementById('edit-title');
+      const editAmount = document.getElementById('edit-amount');
+      const editIntroduced = document.getElementById('edit-introduced');
+      const editCategorySelector = document.getElementById('edit-category-selector');
       const logoutBtn = document.getElementById('logout-btn');
 
       let filterCategory = 'all';
@@ -263,6 +325,7 @@ import '../styles/global.css';
       const todayISO = () => new Date().toISOString().slice(0, 10);
       const defaultCategory = { id: 'general', name: 'General', color: '#22c55e' };
       let isAuthenticated = false;
+      let editingConceptId = null;
 
       const api = async (path, options = {}) => {
         const response = await fetch(path, {
@@ -332,8 +395,10 @@ import '../styles/global.css';
       };
 
       const renderCategories = () => {
-        const options = state.categories.map((cat) => `<option value="${cat.id}">${cat.name}</option>`).join('');
+        const categoriesToUse = state.categories?.length ? state.categories : [defaultCategory];
+        const options = categoriesToUse.map((cat) => `<option value="${cat.id}">${cat.name}</option>`).join('');
         selectorEl.innerHTML = options;
+        if (editCategorySelector) editCategorySelector.innerHTML = options;
 
         categoryList.innerHTML = state.categories
           .map(
@@ -353,6 +418,16 @@ import '../styles/global.css';
           .join('');
 
         renderFilterTags();
+      };
+
+      const openEditConcept = (concept) => {
+        if (!concept) return;
+        editingConceptId = concept.id;
+        if (editTitle) editTitle.value = concept.title || '';
+        if (editAmount) editAmount.value = concept.amount ?? '';
+        if (editIntroduced) editIntroduced.value = concept.introducedAt || '';
+        if (editCategorySelector) editCategorySelector.value = concept.categoryId || 'general';
+        toggleEditModal(true);
       };
 
       const renderFilterTags = () => {
@@ -423,12 +498,30 @@ import '../styles/global.css';
         const paymentsList = (concept.payments || [])
           .map(
             (p) => `
-              <div class="grid grid-cols-2 gap-3 items-center py-2 text-sm text-slate-200">
+              <div class="grid grid-cols-3 gap-3 items-center py-2 text-sm text-slate-200">
                 <div class="flex items-center gap-2">
                   <span class="w-2 h-2 rounded-full bg-emerald-400/80"></span>
                   <span class="font-medium">${currency.format(p.amount)}</span>
                 </div>
                 <span class="text-right text-slate-400">${p.date}</span>
+                <div class="flex items-center justify-end gap-2 text-xs">
+                  <button
+                    data-action="edit-payment"
+                    data-id="${p.id}"
+                    data-concept-id="${concept.id}"
+                    class="px-2 py-1 rounded-full border border-white/15 text-slate-100 hover:border-white/40 hover:bg-white/10 transition"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    data-action="delete-payment"
+                    data-id="${p.id}"
+                    data-concept-id="${concept.id}"
+                    class="px-2 py-1 rounded-full border border-rose-300/40 text-rose-200 hover:border-rose-200 hover:bg-rose-500/10 transition"
+                  >
+                    Eliminar
+                  </button>
+                </div>
               </div>
             `
           )
@@ -468,6 +561,26 @@ import '../styles/global.css';
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                </button>
+                <button
+                  data-action="edit-concept"
+                  data-id="${concept.id}"
+                  class="inline-flex items-center justify-center rounded-full w-10 h-10 border border-white/15 text-slate-100 hover:text-white hover:border-white/40 hover:bg-white/10 transition"
+                  aria-label="Editar concepto"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487a1.5 1.5 0 0 1 2.121 2.122L8.743 16.85l-3.393.425.425-3.393z" />
+                  </svg>
+                </button>
+                <button
+                  data-action="delete-concept"
+                  data-id="${concept.id}"
+                  class="inline-flex items-center justify-center rounded-full w-10 h-10 border border-rose-300/40 text-rose-200 hover:text-rose-50 hover:border-rose-200 hover:bg-rose-500/10 transition"
+                  aria-label="Eliminar concepto"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M10 11v6m4-6v6M9 7l1-2h4l1 2m-9 0-1 13h12l-1-13" />
                   </svg>
                 </button>
               </div>
@@ -559,6 +672,76 @@ import '../styles/global.css';
           });
         });
 
+        listEl.querySelectorAll('[data-action="edit-concept"]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            const concept = state.concepts.find((c) => c.id === id);
+            if (!concept) return;
+            openEditConcept(concept);
+          });
+        });
+
+        listEl.querySelectorAll('[data-action="delete-concept"]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const id = btn.dataset.id;
+            const concept = state.concepts.find((c) => c.id === id);
+            if (!concept) return;
+            const confirmed = confirm(`Eliminar "${concept.title}" y sus pagos?`);
+            if (!confirmed) return;
+            try {
+              await api(`/api/concepts/${id}`, { method: 'DELETE' });
+              await refreshState();
+              render();
+            } catch (err) {
+              console.error(err);
+            }
+          });
+        });
+
+        listEl.querySelectorAll('[data-action="edit-payment"]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const paymentId = btn.dataset.id;
+            const conceptId = btn.dataset.conceptId;
+            const concept = state.concepts.find((c) => c.id === conceptId);
+            const payment = concept?.payments.find((p) => p.id === paymentId);
+            if (!payment) return;
+            const nextAmountRaw = prompt('Nuevo importe del pago (€)', payment.amount);
+            if (nextAmountRaw === null) return;
+            const nextAmount = Number(nextAmountRaw);
+            if (!Number.isFinite(nextAmount) || nextAmount < 0) return;
+            const nextDate = prompt('Fecha (YYYY-MM-DD)', payment.date) || payment.date;
+            try {
+              await api(`/api/payments/${paymentId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ amount: nextAmount, date: nextDate }),
+              });
+              await refreshState();
+              render();
+            } catch (err) {
+              console.error(err);
+            }
+          });
+        });
+
+        listEl.querySelectorAll('[data-action="delete-payment"]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const paymentId = btn.dataset.id;
+            const conceptId = btn.dataset.conceptId;
+            const concept = state.concepts.find((c) => c.id === conceptId);
+            const payment = concept?.payments.find((p) => p.id === paymentId);
+            if (!payment) return;
+            const confirmed = confirm('¿Eliminar este pago?');
+            if (!confirmed) return;
+            try {
+              await api(`/api/payments/${paymentId}`, { method: 'DELETE' });
+              await refreshState();
+              render();
+            } catch (err) {
+              console.error(err);
+            }
+          });
+        });
+
         listEl.querySelectorAll('form[data-action="add-payment"]').forEach((form) => {
           form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -629,12 +812,29 @@ import '../styles/global.css';
         }
       };
 
+      const toggleEditModal = (open) => {
+        if (!editModal) return;
+        if (open) {
+          editModal.classList.remove('hidden');
+          document.body.classList.add('overflow-hidden');
+        } else {
+          editModal.classList.add('hidden');
+          document.body.classList.remove('overflow-hidden');
+          editingConceptId = null;
+        }
+      };
+
       openFormModal?.addEventListener('click', () => toggleFormModal(true));
       formModalClose?.addEventListener('click', () => toggleFormModal(false));
       formModalOverlay?.addEventListener('click', () => toggleFormModal(false));
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') toggleFormModal(false);
+        if (e.key === 'Escape') {
+          toggleFormModal(false);
+          toggleEditModal(false);
+        }
       });
+      editModalClose?.addEventListener('click', () => toggleEditModal(false));
+      editModalOverlay?.addEventListener('click', () => toggleEditModal(false));
 
       const showAuthOverlay = (message) => {
         authOverlay?.classList.remove('hidden');
@@ -671,6 +871,28 @@ import '../styles/global.css';
           });
           e.target.reset();
           toggleFormModal(false);
+          await refreshState();
+          render();
+        } catch (err) {
+          console.error(err);
+        }
+      });
+
+      editForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!editingConceptId) return;
+        const formData = new FormData(e.target);
+        const title = String(formData.get('title') || '').trim();
+        const amount = Number(formData.get('amount'));
+        if (!title || !amount || Number.isNaN(amount)) return;
+        const introducedAt = formData.get('introducedAt') || todayISO();
+        const categoryId = formData.get('categoryId') || 'general';
+        try {
+          await api(`/api/concepts/${editingConceptId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ title, amount, introducedAt, categoryId }),
+          });
+          toggleEditModal(false);
           await refreshState();
           render();
         } catch (err) {
