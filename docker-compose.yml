@@ -6,5 +6,7 @@ services:
     container_name: pagos_app
     ports:
       - "4321:4321"
+    env_file:
+      - .env
     volumes:
       - ./data:/app/data
